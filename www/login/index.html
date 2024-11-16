@@ -1,0 +1,157 @@
+<html>
+
+<head>
+  <title>UAA Rocketry Mission Control - Access</title>
+  <style>
+    :root {
+      --primary: #00ff41;
+      --background: #0a0a0a;
+      --border: rgba(0, 255, 65, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: monospace;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--primary);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image:
+        linear-gradient(rgba(0, 255, 65, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 65, 0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .login-container {
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--border);
+      padding: 2rem;
+      width: 320px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 0.8rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--primary);
+      font-family: monospace;
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    button {
+      width: 100%;
+      padding: 0.8rem;
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      cursor: pointer;
+      font-family: monospace;
+    }
+
+    button:hover {
+      background: var(--primary);
+      color: var(--background);
+    }
+
+    .status {
+      margin-top: 1rem;
+      text-align: center;
+      opacity: 0;
+    }
+
+    .status.error {
+      color: #ff0000;
+      opacity: 1;
+    }
+
+    .status.success {
+      color: var(--primary);
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-container">
+    <div class="header">
+      <h2>MISSION CONTROL</h2>
+      <p>ACCESS VERIFICATION</p>
+    </div>
+
+    <form id="login-form" onsubmit="return handleLogin(event)">
+      <div class="form-group">
+        <label for="access-code">ACCESS CODE</label>
+        <input type="password" id="access-code" required>
+      </div>
+
+      <div class="form-group">
+        <label for="role">ROLE</label>
+        <select id="role" required>
+          <option value="observer">OBSERVER</option>
+          <option value="operator">OPERATOR</option>
+          <option value="engineer">ENGINEER</option>
+        </select>
+      </div>
+
+      <button type="submit">VERIFY</button>
+
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+
+  <script>
+    function handleLogin(event) {
+      event.preventDefault();
+
+      const accessCode = document.getElementById('access-code').value;
+      const role = document.getElementById('role').value;
+      const status = document.getElementById('status');
+
+      if (accessCode && accessCode.length >= 6) {
+        status.className = 'status success';
+        status.textContent = 'ACCESS GRANTED';
+
+        setTimeout(() => {
+          window.location.href = 'https://uaarocketry.com/mission-control/dashboard';
+        }, 1000);
+      } else {
+        status.className = 'status error';
+        status.textContent = 'INVALID ACCESS CODE';
+      }
+
+      return false;
+    }
+  </script>
+
+</body>
+
+</html>
