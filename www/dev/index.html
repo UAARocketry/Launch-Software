@@ -1,0 +1,505 @@
+<html>
+
+<head>
+  <title>LOX/IPA Engine Test Development Console</title>
+  <style>
+    :root {
+      --primary: #00ff41;
+      --warning: #ffb302;
+      --danger: #ff0000;
+      --background: #0a0a0a;
+      --grid: rgba(0, 255, 65, 0.1);
+      --border: rgba(0, 255, 65, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Fira Code', monospace;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--primary);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .dev-console {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .control-section {
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--border);
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    h2,
+    h3 {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+
+    .sensor-control {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      background: var(--grid);
+    }
+
+    input[type="number"] {
+      background: var(--background);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      padding: 5px;
+      width: 100px;
+    }
+
+    .valve-control {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: var(--background);
+      border: 1px solid var(--border);
+      transition: .4s;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: var(--primary);
+      transition: .4s;
+    }
+
+    input:checked+.slider {
+      background-color: var(--primary);
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(26px);
+      background-color: var(--background);
+    }
+
+    .slider.round {
+      border-radius: 34px;
+    }
+
+    .slider.round:before {
+      border-radius: 50%;
+    }
+
+    .warning-text {
+      color: var(--warning);
+    }
+
+    .danger-text {
+      color: var(--danger);
+    }
+
+    .terminal {
+      grid-column: 1 / -1;
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--border);
+      padding: 10px;
+      height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+    }
+
+    .terminal-line {
+      margin: 2px 0;
+      padding-left: 10px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .emergency-control {
+      grid-column: 1 / -1;
+      background: rgba(255, 0, 0, 0.1);
+      border: 2px solid var(--danger);
+      padding: 15px;
+      margin-top: 20px;
+    }
+
+    .override-switch {
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .override-switch:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    .sensor-value {
+      font-family: monospace;
+      padding: 5px;
+      background: rgba(0, 255, 65, 0.1);
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>LOX/IPA Engine Test Development Console</h1>
+  <p class="danger-text">⚠️ DEVELOPMENT MODE - SAFETY INTERLOCKS DISABLED ⚠️</p>
+
+  <div class="dev-console">
+    <div class="control-section">
+      <h2>Propellant Control</h2>
+
+      <h3>LOX System</h3>
+      <div class="sensor-control">
+        <label>LOX Tank Pressure (PSI)</label>
+        <input type="number" id="lox-tank-pressure" value="0" min="0" max="1000">
+      </div>
+      <div class="sensor-control">
+        <label>LOX Tank Temperature (°C)</label>
+        <input type="number" id="lox-tank-temp" value="-183" min="-200" max="50">
+      </div>
+      <div class="sensor-control">
+        <label>LOX Flow Rate (kg/s)</label>
+        <input type="number" id="lox-flow-rate" value="0" min="0" max="10" step="0.1">
+      </div>
+
+      <h3>IPA System</h3>
+      <div class="sensor-control">
+        <label>IPA Tank Pressure (PSI)</label>
+        <input type="number" id="ipa-tank-pressure" value="0" min="0" max="1000">
+      </div>
+      <div class="sensor-control">
+        <label>IPA Tank Temperature (°C)</label>
+        <input type="number" id="ipa-tank-temp" value="20" min="-20" max="50">
+      </div>
+      <div class="sensor-control">
+        <label>IPA Flow Rate (kg/s)</label>
+        <input type="number" id="ipa-flow-rate" value="0" min="0" max="10" step="0.1">
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h2>Valve Control</h2>
+
+      <div class="valve-control">
+        <span>LOX Main Valve</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="lox-main-valve">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="sensor-control">
+        <label>Position Feedback (%)</label>
+        <input type="number" id="lox-main-pos" value="0" min="0" max="100">
+      </div>
+
+      <div class="valve-control">
+        <span>IPA Main Valve</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="ipa-main-valve">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="sensor-control">
+        <label>Position Feedback (%)</label>
+        <input type="number" id="ipa-main-pos" value="0" min="0" max="100">
+      </div>
+
+      <div class="valve-control">
+        <span>LOX Purge Valve</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="lox-purge-valve">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="valve-control">
+        <span>IPA Purge Valve</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="ipa-purge-valve">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="valve-control">
+        <span>N2 Pressurization Valve</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="n2-press-valve">
+          <span class="slider round"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h2>Engine Parameters</h2>
+
+      <div class="sensor-control">
+        <label>Chamber Pressure (PSI)</label>
+        <input type="number" id="chamber-pressure" value="0" min="0" max="1000">
+      </div>
+
+      <div class="sensor-control">
+        <label>Chamber Temperature (°C)</label>
+        <input type="number" id="chamber-temp" value="25" min="0" max="3000">
+      </div>
+
+      <div class="sensor-control">
+        <label>Mixture Ratio (O/F)</label>
+        <input type="number" id="mixture-ratio" value="2.5" min="0" max="5" step="0.1">
+      </div>
+
+      <h3>Ignition System</h3>
+      <div class="valve-control">
+        <span>Igniter Power</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="igniter-power">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="sensor-control">
+        <label>Igniter Current (A)</label>
+        <input type="number" id="igniter-current" value="0" min="0" max="20">
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h2>Sensors</h2>
+
+      <h3>Pressure Transducers</h3>
+      <div class="sensor-control">
+        <label>PT-101 (LOX Feed)</label>
+        <input type="number" id="pt-101" value="0" min="0" max="1000">
+      </div>
+      <div class="sensor-control">
+        <label>PT-102 (IPA Feed)</label>
+        <input type="number" id="pt-102" value="0" min="0" max="1000">
+      </div>
+      <div class="sensor-control">
+        <label>PT-103 (Chamber)</label>
+        <input type="number" id="pt-103" value="0" min="0" max="1000">
+      </div>
+
+      <h3>Thermocouples</h3>
+      <div class="sensor-control">
+        <label>TC-101 (LOX Line)</label>
+        <input type="number" id="tc-101" value="-183" min="-200" max="50">
+      </div>
+      <div class="sensor-control">
+        <label>TC-102 (IPA Line)</label>
+        <input type="number" id="tc-102" value="20" min="-20" max="50">
+      </div>
+      <div class="sensor-control">
+        <label>TC-103 (Chamber)</label>
+        <input type="number" id="tc-103" value="25" min="0" max="3000">
+      </div>
+    </div>
+
+    <div class="control-section">
+      <h2>Safety Systems</h2>
+
+      <div class="valve-control">
+        <span>Emergency Vent Valve</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="emergency-vent">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="valve-control">
+        <span>Fire Suppression</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="fire-suppress">
+          <span class="slider round"></span>
+        </label>
+      </div>
+
+      <div class="sensor-control">
+        <label>Blast Shield Position (%)</label>
+        <input type="number" id="blast-shield-pos" value="100" min="0" max="100">
+      </div>
+
+      <h3>Environmental</h3>
+      <div class="sensor-control">
+        <label>Wind Speed (m/s)</label>
+        <input type="number" id="wind-speed" value="0" min="0" max="50">
+      </div>
+      <div class="sensor-control">
+        <label>Ambient Temperature (°C)</label>
+        <input type="number" id="ambient-temp" value="25" min="-20" max="50">
+      </div>
+    </div>
+
+    <div class="emergency-control">
+      <h2 class="danger-text">Emergency Controls</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+        <button class="override-switch" id="safety-override">SAFETY OVERRIDE</button>
+        <button class="override-switch" id="emergency-shutdown">EMERGENCY SHUTDOWN</button>
+        <button class="override-switch" id="manual-purge">MANUAL PURGE</button>
+      </div>
+    </div>
+
+    <div class="terminal" id="dev-log">
+      <div class="terminal-line">[SYSTEM] Development console initialized</div>
+      <div class="terminal-line warning-text">[WARNING] Safety interlocks disabled</div>
+    </div>
+  </div>
+
+  <script>
+    const sensors = {};
+    const valves = {};
+
+    // Initialize all input values to their defaults
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+      sensors[input.id] = parseFloat(input.value);
+      input.addEventListener('change', (e) => {
+        sensors[e.target.id] = parseFloat(e.target.value);
+        logAction(`${e.target.id} set to ${e.target.value}`);
+        updateSystems();
+      });
+    });
+
+    // Initialize all valve states
+    document.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      valves[input.id] = input.checked;
+      input.addEventListener('change', (e) => {
+        valves[e.target.id] = e.target.checked;
+        logAction(`${e.target.id} ${e.target.checked ? 'opened' : 'closed'}`);
+        updateSystems();
+      });
+    });
+
+    function logAction(message, type = 'info') {
+      const log = document.getElementById('dev-log');
+      const entry = document.createElement('div');
+      entry.className = `terminal-line ${type === 'warning' ? 'warning-text' : ''}`;
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${message}`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateSystems() {
+      // Check for dangerous conditions
+      if (sensors['chamber-pressure'] > 800) {
+        logAction('WARNING: Chamber pressure exceeding safety limits!', 'warning');
+      }
+
+      if (sensors['chamber-temp'] > 2500) {
+        logAction('WARNING: Chamber temperature critical!', 'warning');
+      }
+
+      // Calculate mixture ratio
+      if (sensors['lox-flow-rate'] > 0 && sensors['ipa-flow-rate'] > 0) {
+        const mixtureRatio = sensors['lox-flow-rate'] / sensors['ipa-flow-rate'];
+        document.getElementById('mixture-ratio').value = mixtureRatio.toFixed(2);
+      }
+
+      // Update valve positions based on pressure differentials
+      if (valves['lox-main-valve']) {
+        const positionFeedback = Math.min(100,
+          (sensors['lox-tank-pressure'] - sensors['chamber-pressure']) / 10);
+        document.getElementById('lox-main-pos').value = positionFeedback.toFixed(0);
+      }
+
+      if (valves['ipa-main-valve']) {
+        const positionFeedback = Math.min(100,
+          (sensors['ipa-tank-pressure'] - sensors['chamber-pressure']) / 10);
+        document.getElementById('ipa-main-pos').value = positionFeedback.toFixed(0);
+      }
+    }
+
+    // Emergency Shutdown Procedure
+    document.getElementById('emergency-shutdown').addEventListener('click', () => {
+      logAction('EMERGENCY SHUTDOWN INITIATED', 'warning');
+
+      // Close all valves
+      document.querySelectorAll('input[type="checkbox"]').forEach(valve => {
+        if (valve.id.includes('purge')) {
+          valve.checked = true; // Open purge valves
+        } else {
+          valve.checked = false; // Close all other valves
+        }
+        valves[valve.id] = valve.checked;
+      });
+
+      // Vent pressures
+      document.querySelectorAll('input[type="number"]').forEach(sensor => {
+        if (sensor.id.includes('pressure')) {
+          sensor.value = 0;
+          sensors[sensor.id] = 0;
+        }
+      });
+
+      updateSystems();
+    });
+
+    // Safety Override
+    document.getElementById('safety-override').addEventListener('click', function () {
+      this.classList.toggle('active');
+      logAction(this.classList.contains('active') ?
+        'WARNING: Safety systems manually overridden' :
+        'Safety systems re-engaged', 'warning');
+    });
+
+    // Manual Purge
+    document.getElementById('manual-purge').addEventListener('click', () => {
+      logAction('Manual purge sequence initiated');
+      ['lox-purge-valve', 'ipa-purge-valve', 'n2-press-valve'].forEach(id => {
+        document.getElementById(id).checked = true;
+        valves[id] = true;
+      });
+      updateSystems();
+    });
+
+    // Initial system update
+    updateSystems();
+
+    // Periodic system check
+    setInterval(updateSystems, 1000);
+  </script>
+
+</body>
+
+</html>
