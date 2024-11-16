@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LOX/IPA Engine Test Mission Control</title>
+  <style>
+    :root {
+      --primary: #00ff41;
+      --warning: #ffb302;
+      --danger: #ff0000;
+      --background: #0a0a0a;
+      --grid: rgba(0, 255, 65, 0.1);
+      --border: rgba(0, 255, 65, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Fira Code', monospace;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--primary);
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: 20px;
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .status-panel {
+      background: var(--grid);
+      border: 1px solid var(--border);
+      padding: 15px;
+      margin-bottom: 10px;
+    }
+
+    .critical-indicator {
+      font-size: 1.2em;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .warning {
+      color: var(--warning);
+      border-color: var(--warning);
+    }
+
+    .danger {
+      color: var(--danger);
+      border-color: var(--danger);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        background: transparent;
+      }
+
+      50% {
+        background: rgba(255, 0, 0, 0.2);
+      }
+
+      100% {
+        background: transparent;
+      }
+    }
+
+    .control-panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    .control-button {
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      padding: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .control-button:hover {
+      background: var(--primary);
+      color: var(--background);
+    }
+
+    .control-button.active {
+      background: var(--primary);
+      color: var(--background);
+    }
+
+    .control-button.emergency {
+      border-color: var(--danger);
+      color: var(--danger);
+      font-weight: bold;
+    }
+
+    .control-button.emergency:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    .terminal {
+      background: rgba(0, 0, 0, 0.8);
+      border: 1px solid var(--border);
+      height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .terminal-line {
+      margin: 2px 0;
+      padding-left: 10px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .terminal-line.warning {
+      border-left-color: var(--warning);
+    }
+
+    .terminal-line.error {
+      border-left-color: var(--danger);
+    }
+
+    .schematic {
+      border: 1px solid var(--border);
+      padding: 10px;
+      height: 300px;
+      position: relative;
+    }
+
+    .flow-indicator {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      position: absolute;
+      background: var(--primary);
+    }
+
+    .flow-line {
+      position: absolute;
+      background: var(--primary);
+      height: 2px;
+    }
+
+    .valve-indicator {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pressure-gauge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .gauge-bar {
+      flex-grow: 1;
+      height: 20px;
+      background: var(--grid);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      background: var(--primary);
+      transition: width 0.3s;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+</head>
+
+<body>
+    <div class="grid-container">
+        <header class="header">
+          <div>
+            <h1>LOX/IPA Engine Test Control</h1>
+            <p>Test ID: LOXIPA-23-002</p>
+          </div>
+          <div id="mission-timer" style="font-size: 2em;">T- 00:00:00</div>
+          <div>
+            <h2 id="test-status">Status: STANDBY</h2>
+            <p id="safety-status">Safety Systems: ARMED</p>
+          </div>
+        </header>
+    
+        <div class="left-column">
+          <div class="status-panel">
+            <h2>Critical Systems</h2>
+            <div id="lox-pressure" class="critical-indicator">
+              LOX Tank Pressure
+              <span>0 PSI</span>
+            </div>
+            <div id="ipa-pressure" class="critical-indicator">
+              IPA Tank Pressure
+              <span>0 PSI</span>
+            </div>
+            <div id="chamber-pressure" class="critical-indicator">
+              Chamber Pressure
+              <span>0 PSI</span>
+            </div>
+            <div id="mixture-ratio" class="critical-indicator">
+              O/F Ratio
+              <span>0.0</span>
+            </div>
+          </div>
+    
+          <div class="status-panel">
+            <h2>Temperature Monitoring</h2>
+            <div id="lox-temp" class="critical-indicator">
+              LOX Temperature
+              <span>-183°C</span>
+            </div>
+            <div id="ipa-temp" class="critical-indicator">
+              IPA Temperature
+              <span>20°C</span>
+            </div>
+            <div id="chamber-temp" class="critical-indicator">
+              Chamber Temperature
+              <span>25°C</span>
+            </div>
+          </div>
+        </div>
+    
+        <div class="center-column">
+          <div class="schematic" id="engine-schematic">
+            <!-- Engine schematic elements will be added via JavaScript -->
+          </div>
+    
+          <div class="control-panel">
+            <h2>Test Sequence Control</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <button class="control-button" id="begin-test">BEGIN TEST SEQUENCE</button>
+              <button class="control-button" id="abort-test">ABORT TEST</button>
+              <button class="control-button" id="purge-system">PURGE SYSTEM</button>
+              <button class="control-button" id="vent-tanks">VENT TANKS</button>
+              <button class="control-button emergency" id="emergency-shutdown">EMERGENCY SHUTDOWN</button>
+            </div>
+          </div>
+    
+          <div class="terminal" id="test-log">
+            <div class="terminal-line">[SYSTEM] Test control system initialized</div>
+            <div class="terminal-line">[SYSTEM] Awaiting test sequence initiation</div>
+          </div>
+        </div>
+    
+        <div class="right-column">
+          <div class="status-panel">
+            <h2>Valve Status</h2>
+            <button class="control-button" id="lox-main">LOX Main Valve: CLOSED</button>
+            <button class="control-button" id="ipa-main">IPA Main Valve: CLOSED</button>
+            <button class="control-button" id="lox-purge">LOX Purge Valve: CLOSED</button>
+            <button class="control-button" id="ipa-purge">IPA Purge Valve: CLOSED</button>
+            <button class="control-button" id="igniter">Igniter: OFF</button>
+          </div>
+    
+          <div class="status-panel">
+            <h2>Flow Rates</h2>
+            <div class="pressure-gauge">
+              LOX Flow
+              <div class="gauge-bar">
+                <div class="gauge-fill" id="lox-flow" style="width: 0%"></div>
+              </div>
+              <span>0 kg/s</span>
+            </div>
+            <div class="pressure-gauge">
+              IPA Flow
+              <div class="gauge-bar">
+                <div class="gauge-fill" id="ipa-flow" style="width: 0%"></div>
+              </div>
+              <span>0 kg/s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <script>
+    const socket = io();
+
+    // Update telemetry in real time
+    socket.on("telemetry", (data) => {
+      updateIndicator("lox-pressure", data.lox_pressure, " PSI");
+      updateIndicator("ipa-pressure", data.ipa_pressure, " PSI");
+      updateIndicator("chamber-pressure", data.chamber_pressure, " PSI");
+      updateIndicator("mixture-ratio", data.mixture_ratio);
+
+      updateIndicator("lox-temp", data.lox_temp, "°C");
+      updateIndicator("ipa-temp", data.ipa_temp, "°C");
+      updateIndicator("chamber-temp", data.chamber_temp, "°C");
+    });
+
+    // Utility functions for updating indicators
+    function updateIndicator(id, value, unit = '') {
+      const element = document.getElementById(id);
+      if (element) {
+        element.querySelector('span').textContent = `${value}${unit}`;
+      }
+    }
+  </script>
+</body>
+
+</html>
